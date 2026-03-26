@@ -2694,25 +2694,26 @@ const EntryMatrix={
   // Gate definitions
   gates:{
     News:{label:'News Block',enabled:false,value:false,info:'News event active'},
-    NoPos:{label:'No Position',enabled:true,value:false,info:'No open position'},
-    Sqz:{label:'Squeeze',enabled:true,value:false,info:'BB not in squeeze'},
+    NoPos:{label:'No Position',enabled:false,value:false,info:'No open position'},
+    Sqz:{label:'Squeeze',enabled:false,value:false,info:'BB not in squeeze'},
     HTFSqz:{label:'HTF Squeeze',enabled:false,value:false,info:'Higher TF not squeezed'},
-    EWValid:{label:'EW Valid',enabled:true,value:false,info:'Elliott Wave valid'},
-    Session:{label:'Session',enabled:true,value:false,info:'Proper trading session'},
-    BBTrend:{label:'BB Trend',enabled:true,value:false,info:'BB slope positive'},
-    Basis:{label:'Basis',enabled:true,value:false,info:'Price near BB basis'},
-    FibZone:{label:'Fib Zone',enabled:true,value:false,info:'In Fib zone'},
+    EWValid:{label:'EW Valid',enabled:false,value:false,info:'Elliott Wave valid'},
+    Session:{label:'Session',enabled:false,value:false,info:'Proper trading session'},
+    BBTrend:{label:'BB Trend',enabled:false,value:false,info:'BB slope positive'},
+    Basis:{label:'Basis',enabled:false,value:false,info:'Price near BB basis'},
+    FibZone:{label:'Fib Zone',enabled:false,value:false,info:'In Fib zone'},
     Bounce:{label:'Bounce',enabled:false,value:false,info:'Bounce confirmed'},
-    Chase:{label:'Chase',enabled:true,value:false,info:'Not chasing entry'},
-    TPDist:{label:'TP Distance',enabled:true,value:false,info:'TP far enough away'}
+    Chase:{label:'Chase',enabled:false,value:false,info:'Not chasing entry'},
+    TPDist:{label:'TP Distance',enabled:false,value:false,info:'TP far enough away'}
   },
+  awareness:{},
   
   // Evaluate all gates based on current market state
   evaluate(){
     const K=S.K;
     if(!K||K.length<50)return false;
     const n=K.length;
-    const live=K[n-1][4];
+    const live=K[n-1].c;
     const bbs=compBB();
     const bb1=bbs[0];
     
@@ -2745,6 +2746,24 @@ const EntryMatrix={
     
     // TP Distance - enough space for TP
     this.gates.TPDist.value=_ewCache.c100&&Math.abs(live-_ewCache.c100)/live>0.005;
+
+    // Update awareness metrics
+    const volArr=K.map(k=>k.v);
+    const volAvg=volArr.slice(-20).reduce((a,b)=>a+b,0)/20;
+    const volCurr=K[n-1].v;
+    const volRatio=volAvg>0?volCurr/volAvg:1;
+    
+    const fibs=compFib();
+    const fibNear=fibs&&fibs.length>0?fibs[0].level:'--';
+    
+    this.awareness={
+      pctB:Math.round(pctB*100),
+      vol:volRatio.toFixed(1)+'x',
+      fib:fibNear,
+      sqz:bbState.inSqueeze?'YES':'NO',
+      ew:_ewCache.wave||'--',
+      risk:'--' // placeholder
+    };
   },
   
   // Check if all enabled gates pass
@@ -2806,6 +2825,17 @@ const EntryMatrix={
       </div>
       <div style="padding:4px;background:${allPass?'rgba(0,255,136,0.15)':'rgba(255,204,0,0.15)'};border:1px solid ${allPass?'rgba(0,255,136,0.3)':'rgba(255,204,0,0.3)'};border-radius:3px;text-align:center;color:${statusColor};font-weight:700;font-size:10px">
         ENTRY ${statusText}
+      </div>
+      <div style="margin-top:6px;padding-top:4px;border-top:1px solid rgba(0,212,255,0.2)">
+        <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">📊 Awareness</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px;font-size:7px">
+          ${['%B','Vol','Fib','Sqz','EW','Risk'].map((label,i)=>{
+            const key=label.toLowerCase();
+            const val=this.awareness[key]||'--';
+            const col=label==='Sqz'&&val==='YES'?'var(--red)':label==='%B'&&val>70?'var(--green)':label==='%B'&&val<30?'var(--red)':'var(--text2)';
+            return `<div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">${label}</span><span style="color:${col};font-weight:700">${val}</span></div>`;
+          }).join('')}
+        </div>
       </div>
     `;
   }
@@ -2973,10 +3003,10 @@ function updateSessionPills(){
 }
 
 // Entry Gate Check (13 gates)
-function checkEntryGates(sym){const s=getSessionInfo();if(s.hardBlock){speak('London open hard block');return false}const live=S.K.length?S.K[S.K.length-1][4]:0;if(!live)return false;if(bbState.inSqueeze){speak(S.sym+' Bollinger Band squeeze');return false}if(!_ewCache.valid){speak('No valid Elliott Wave count');return false}if(live<_ewCache.invalidPrice&&S.aiSide==='BUY'){speak('Below invalidation');return false}if(live>_ewCache.invalidPrice&&S.aiSide==='SELL'){speak('Above invalidation');return false}if(S.aiSide==='BUY'&&live>bbState.basis*1.005){speak('Price above basis chase');return false}if(S.aiSide==='SELL'&&live<bbState.basis*0.995){speak('Price below basis chase');return false}const tpDist=Math.abs(live-_ewCache.c100)/live;if(tpDist<0.005){speak('Target too close');return false}return true}
+function checkEntryGates(sym){const s=getSessionInfo();if(s.hardBlock){speak('London open hard block');return false}const live=S.K.length?S.K[S.K.length-1].c:0;if(!live)return false;if(bbState.inSqueeze){speak(S.sym+' Bollinger Band squeeze');return false}if(!_ewCache.valid){speak('No valid Elliott Wave count');return false}if(live<_ewCache.invalidPrice&&S.aiSide==='BUY'){speak('Below invalidation');return false}if(live>_ewCache.invalidPrice&&S.aiSide==='SELL'){speak('Above invalidation');return false}if(S.aiSide==='BUY'&&live>bbState.basis*1.005){speak('Price above basis chase');return false}if(S.aiSide==='SELL'&&live<bbState.basis*0.995){speak('Price below basis chase');return false}const tpDist=Math.abs(live-_ewCache.c100)/live;if(tpDist<0.005){speak('Target too close');return false}return true}
 
 // Auto Monitor (runs every 3 seconds when position open)
-function autoMonitor(){if(!S.pos||!S.pos.sym)return;const live=S.K.length?S.K[S.K.length-1][4]:0;if(!live)return;const isBuy=S.pos.side==='BUY';// SL Check (first guard)
+function autoMonitor(){if(!S.pos||!S.pos.sym)return;const live=S.K.length?S.K[S.K.length-1].c:0;if(!live)return;const isBuy=S.pos.side==='BUY';// SL Check (first guard)
 if(isBuy&&live<_atSLLevel){speak('Stop loss hit');playTone(200,100,0.5);closePos('SL_HIT');return}else if(!isBuy&&live>_atSLLevel){speak('Stop loss hit');playTone(200,100,0.5);closePos('SL_HIT');return}// EW Invalidation (second guard)
 if(_ewCache.valid){const invP=_ewCache.invalidPrice;if(isBuy&&live<invP){speak('Elliott Wave invalidated');closePos('EW_INVALID');return}else if(!isBuy&&live>invP){speak('Elliott Wave invalidated');closePos('EW_INVALID');return}}// TP1 Hit
 if(!_atTP1Hit&&isBuy&&live>=_ewCache.c100){_atTP1Hit=true;speak('Target 1 hit closing 50 percent');closePos('TP1_HIT');return}else if(!_atTP1Hit&&!isBuy&&live<=_ewCache.c100){_atTP1Hit=true;speak('Target 1 hit closing 50 percent');closePos('TP1_HIT');return}// TP2 Hit
@@ -2991,7 +3021,7 @@ function closePos(reason){if(!S.pos)return;const pnl=S.pos.unrealizedPnl||0;addS
 function handleAISignal(type,price,conf,bar){if(S.pos){return}if(!checkEntryGates(S.sym)){return}const sl=price*0.99;_atSLLevel=sl;_atEntryPrice=price;_atTP1Hit=false;_atTP2Hit=false;_atTP3Hit=false;addSignal(type,price,conf,bar);speak(S.sym+' '+type+' at '+fmt(price)+' stop loss '+fmt(sl))}
 
 // Update BB State
-function updateBBState(){if(!S.K||S.K.length<20)return;const k=S.K,bands=S.ind.bb?S.bbP:null;if(!bands)return;bbState={inSqueeze:false,bandWalkUp:false,bandWalkDn:false,sausageTop:false,sausageBot:false,basis:S.K[S.K.length-1][4]};let walkUp=0,walkDn=0,sausT=0,sausB=0;for(let i=S.K.length-3;i<S.K.length;i++){const c=S.K[i],up=c[4]>=bands[2],dn=c[4]<=bands[0];if(up)walkUp++;if(dn)walkDn++;if(c[4]>=bands[2]*0.9995&&c[1]>=bands[2]*0.9995&&c[2]>=bands[2]*0.9995)sausT++;if(c[4]<=bands[0]*1.0005&&c[2]<=bands[0]*1.0005&&c[1]<=bands[0]*1.0005)sausB++}bbState.bandWalkUp=walkUp>=3;bbState.bandWalkDn=walkDn>=3;bbState.sausageTop=sausT>=3;bbState.sausageBot=sausB>=3;const bw=Math.abs(bands[2]-bands[0]),avgBw=S.bbAvgBw||bw;if(bands[2]-bands[0]<avgBw*0.5)bbState.inSqueeze=true}
+function updateBBState(){if(!S.K||S.K.length<20)return;const k=S.K,bands=S.ind.bb?S.bbP:null;if(!bands)return;bbState={inSqueeze:false,bandWalkUp:false,bandWalkDn:false,sausageTop:false,sausageBot:false,basis:S.K[S.K.length-1].c};let walkUp=0,walkDn=0,sausT=0,sausB=0;for(let i=S.K.length-3;i<S.K.length;i++){const c=S.K[i],up=c.c>=bands[2],dn=c.c<=bands[0];if(up)walkUp++;if(dn)walkDn++;if(c.c>=bands[2]*0.9995&&c.o>=bands[2]*0.9995&&c.h>=bands[2]*0.9995)sausT++;if(c.c<=bands[0]*1.0005&&c.h<=bands[0]*1.0005&&c.l<=bands[0]*1.0005)sausB++}bbState.bandWalkUp=walkUp>=3;bbState.bandWalkDn=walkDn>=3;bbState.sausageTop=sausT>=3;bbState.sausageBot=sausB>=3;const bw=Math.abs(bands[2]-bands[0]),avgBw=S.bbAvgBw||bw;if(bands[2]-bands[0]<avgBw*0.5)bbState.inSqueeze=true}
 
 // Update Matrix Display
 
