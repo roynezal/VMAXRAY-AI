@@ -418,9 +418,10 @@ window.addEventListener('load',()=>{
   if(S.keys.test.k)fetchAcc('test');
   wakeLock();
   updateLogo();
-  addSig('alert','SYSTEM','READY','WebSocket connecting to Binance...',true);
-  // Mobile menu show
-  if(window.innerWidth<=700)document.getElementById('mmenu').style.display='flex';
+   addSig('alert','SYSTEM','READY','WebSocket connecting to Binance...',true);
+   // Mobile menu show
+   const mmenu=document.getElementById('mmenu');
+   if(window.innerWidth<=700&&mmenu)mmenu.style.display='flex';
 });
 
 async function wakeLock(){try{if('wakeLock'in navigator)await navigator.wakeLock.request('screen')}catch(e){}}
@@ -435,13 +436,18 @@ function loadS(){
     if(d.s){
       S.sym=d.s;
       const sel=document.getElementById('csym');
-      let found=false;
-      for(let i=0;i<sel.options.length;i++)if(sel.options[i].value===d.s){sel.value=d.s;found=true;break}
-      if(!found){const opt=document.createElement('option');opt.value=d.s;opt.text=d.s;sel.add(opt);sel.value=d.s;}
+      if(sel){
+        let found=false;
+        for(let i=0;i<sel.options.length;i++)if(sel.options[i].value===d.s){sel.value=d.s;found=true;break}
+        if(!found){const opt=document.createElement('option');opt.value=d.s;opt.text=d.s;sel.add(opt);sel.value=d.s;}
+      }
     }
     if(d.strat){
-      document.getElementById('ai-strategy').value=d.strat;
-      onStrategyChange();
+      const stratEl=document.getElementById('ai-strategy');
+      if(stratEl){
+        stratEl.value=d.strat;
+        onStrategyChange();
+      }
     }
     if(d.em&&typeof EntryMatrix!=='undefined'){
       Object.entries(d.em).forEach(([k,v])=>{if(EntryMatrix.gates[k])EntryMatrix.gates[k].enabled=v;});
@@ -933,7 +939,7 @@ function onKline(k){
   if(!S.iTimer)S.iTimer=setTimeout(()=>{chkAlerts();S.iTimer=null},2500);
   S.dirty=true;
 }
-function setWS(on){const e=document.getElementById('wsst');e.className=on?'on':'live';e.textContent='WS'+(on?'●':'●')}
+function setWS(on){const e=document.getElementById('wsst');if(e){e.className=on?'on':'live';e.textContent='WS'+(on?'●':'●');}}
 
 // Fetch symbol list from Binance Futures
 async function fetchSymbolList(){
@@ -1096,15 +1102,19 @@ function onCoin(){
 function updatePx(){
   if(!S.last)return;
   const chg=S.prev?(S.last-S.prev)/S.prev*100:0;
-  document.getElementById('cprice').textContent=fmt(S.last);
-  const e=document.getElementById('pchg');e.textContent=(chg>=0?'+':'')+chg.toFixed(2)+'%';e.className=chg>=0?'pos':'neg';
+  const priceEl=document.getElementById('cprice');
+  if(priceEl)priceEl.textContent=fmt(S.last);
+  const e=document.getElementById('pchg');
+  if(e){e.textContent=(chg>=0?'+':'')+chg.toFixed(2)+'%';e.className=chg>=0?'pos':'neg';}
 }
 function updateLogo(){
   const sym=S.sym.replace('USDT','').toLowerCase();
   const e=document.getElementById('clogo');
-  e.style.visibility='visible';
-  e.src=`https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/32/color/${sym}.png`;
-  e.onerror=()=>e.style.visibility='hidden';
+  if(e){
+    e.style.visibility='visible';
+    e.src=`https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/32/color/${sym}.png`;
+    e.onerror=()=>e.style.visibility='hidden';
+  }
 }
 
 // ALERTS
@@ -1824,10 +1834,10 @@ function toggleAI(){
   updateAIAnalysis();
 }
 function onStrategyChange(){
-  const strat=document.getElementById('ai-strategy').value;
+  const strat=document.getElementById('ai-strategy')?.value||'scalper';
   const panel=document.getElementById('matrix-panel');
   // Always show entry matrix
-  panel.style.display='block';
+  if(panel)panel.style.display='block';
   toast('Strategy: '+strat.toUpperCase(),'ok');
 }
 function updateMatrix(){
