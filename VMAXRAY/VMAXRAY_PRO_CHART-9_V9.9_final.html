@@ -609,7 +609,10 @@ function drawCross(mx,py,hi,lo,ch){
 function drawHoverInfo(vis,vn,cw){
   const i=S.cx>=0?Math.min(vn-1,Math.max(0,Math.floor((S.cx-PAD.l)/cw))):vn-1;
   const k=vis[i];
-  if(k)document.getElementById('cinfo').textContent=`O:${fmt(k.o)} H:${fmt(k.h)} L:${fmt(k.l)} C:${fmt(k.c)} V:${fmtV(k.v)}`;
+  if(k){
+    const cinfoEl=document.getElementById('cinfo');
+    if(cinfoEl)cinfoEl.textContent=`O:${fmt(k.o)} H:${fmt(k.h)} L:${fmt(k.l)} C:${fmt(k.c)} V:${fmtV(k.v)}`;
+  }
 }
 
 // BB
@@ -870,10 +873,11 @@ function connectWS(){
           try{
             const d=JSON.parse(e.data);
             const p=d.p||d.markPrice;
-            if(p&&mkSym===S.sym){
-              S.mark=parseFloat(p);
-              document.getElementById('mkp').textContent='Mkt:'+fmt(S.mark);
-            }
+             if(p&&mkSym===S.sym){
+               S.mark=parseFloat(p);
+               const mkpEl=document.getElementById('mkp');
+               if(mkpEl)mkpEl.textContent='Mkt:'+fmt(S.mark);
+             }
           }catch(ex){}
         };
         S.wsMk.onerror=()=>{};
@@ -933,9 +937,9 @@ function onKline(k){
   else{const l=S.K[S.K.length-1];if(l.t===c.t){S.K[S.K.length-1]=c}else{S.K.push(c);if(S.K.length>1500)S.K.shift();S.vE=S.K.length}}
   S.last=c.c;updatePx();
   S.wsLive=true;
-  document.getElementById('wsst').className='live';
+  const wsstEl=document.getElementById('wsst');if(wsstEl)wsstEl.className='live';
   clearTimeout(S.wsPulse);
-  S.wsPulse=setTimeout(()=>{document.getElementById('wsst').className=''},2000);
+  S.wsPulse=setTimeout(()=>{const wsstEl=document.getElementById('wsst');if(wsstEl)wsstEl.className='';},2000);
   if(!S.iTimer)S.iTimer=setTimeout(()=>{chkAlerts();S.iTimer=null},2500);
   S.dirty=true;
 }
@@ -944,6 +948,7 @@ function setWS(on){const e=document.getElementById('wsst');if(e){e.className=on?
 // Fetch symbol list from Binance Futures
 async function fetchSymbolList(){
   const sel=document.getElementById('csym');
+  if(!sel)return;
   sel.innerHTML='<option value="">Loading...</option>';
   
   const url=`${FAPI}/fapi/v1/exchangeInfo`;
@@ -980,8 +985,7 @@ async function fetch24hTicker(sym){
   if(d.priceChangePercent!==undefined){
     const pct=parseFloat(d.priceChangePercent);
     const e=document.getElementById('pchg');
-    e.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%';
-    e.className=pct>=0?'pos':'neg';
+    if(e){e.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%';e.className=pct>=0?'pos':'neg';}
   }
   if(d.lastPrice&&d.priceChange){
     S.prev=parseFloat(d.lastPrice)-parseFloat(d.priceChange);
@@ -1048,7 +1052,13 @@ async function fProxy(url){
 
 // TF
 function getTf(){
-  const u=document.getElementById('tfu').value,v=parseInt(document.getElementById('tfv').value),x=parseInt(document.getElementById('tfx').value),c=v*x;
+  const tfuEl=document.getElementById('tfu');
+  const tfvEl=document.getElementById('tfv');
+  const tfxEl=document.getElementById('tfx');
+  const u=tfuEl?.value||'m';
+  const v=parseInt(tfvEl?.value||'1');
+  const x=parseInt(tfxEl?.value||'1');
+  const c=v*x;
   // Binance Futures supported intervals: 1m 3m 5m 15m 30m 1h 2h 4h 6h 8h 12h 1d 3d 1w 1M
   if(u==='m'){if(c<=1)return'1m';if(c<=3)return'3m';if(c<=5)return'5m';if(c<=15)return'15m';if(c<=30)return'30m';if(c<=60)return'1h';if(c<=120)return'2h';if(c<=240)return'4h';return'6h'}
   if(u==='h'){if(c<=1)return'1h';if(c<=2)return'2h';if(c<=4)return'4h';if(c<=6)return'6h';if(c<=12)return'12h';return'1d'}
@@ -1060,40 +1070,46 @@ function onTf(){S.K=[];S.vS=0;S.vE=0;S.last=0;S.prev=0;if(S.ws)try{S.ws.close()}
 function onCoinSel(){
   const sel=document.getElementById('csym');
   const customInp=document.getElementById('csym-custom');
-  if(sel.value===''){
+  if(sel&&sel.value===''){
     // Show custom input
-    customInp.style.display='block';
-    customInp.focus();
-  } else {
-    customInp.style.display='none';
+    if(customInp){customInp.style.display='block';customInp.focus();}
+  } else if(sel){
+    if(customInp)customInp.style.display='none';
     S.sym=sel.value;
     onCoin();
   }
 }
 function onCoinCustom(){
   const inp=document.getElementById('csym-custom');
+  if(!inp)return;
   const sym=inp.value.trim().toUpperCase();
   if(!sym){toast('Enter a symbol e.g. SIRENUSDT','wn');return}
   // Validate it exists on Binance Futures
   S.sym=sym;
   // Add to dropdown as custom option if not already there
   const sel=document.getElementById('csym');
-  let found=false;
-  for(let i=0;i<sel.options.length;i++)if(sel.options[i].value===sym){sel.value=sym;found=true;break}
-  if(!found){const opt=document.createElement('option');opt.value=sym;opt.text=sym;sel.add(opt);sel.value=sym;}
+  if(sel){
+    let found=false;
+    for(let i=0;i<sel.options.length;i++)if(sel.options[i].value===sym){sel.value=sym;found=true;break}
+    if(!found){const opt=document.createElement('option');opt.value=sym;opt.text=sym;sel.add(opt);sel.value=sym;}
+  }
   inp.style.display='none';
   onCoin();
 }
 function onCoin(){
-  S.sym=document.getElementById('csym').value;
+  const csymEl=document.getElementById('csym');
+  S.sym=csymEl?.value||'BTCUSDT';
   saveS();updateLogo();
   // Full reset — clear all price state so old coin data never bleeds through
   S.K=[];S.vS=0;S.vE=0;S.last=0;S.mark=0;S.prev=0;S.dirty=true;
-  document.getElementById('cprice').textContent='--';
-  document.getElementById('pchg').textContent='--';
-  document.getElementById('pchg').className='pos';
-  document.getElementById('mkp').textContent='Mkt:--';S.mark=0;
-  document.getElementById('cinfo').textContent='O:-- H:-- L:-- C:-- V:--';
+  const cpriceEl=document.getElementById('cprice');
+  if(cpriceEl)cpriceEl.textContent='--';
+  const pchgEl=document.getElementById('pchg');
+  if(pchgEl){pchgEl.textContent='--';pchgEl.className='pos';}
+  const mkpEl=document.getElementById('mkp');
+  if(mkpEl)mkpEl.textContent='Mkt:--';S.mark=0;
+  const cinfoEl=document.getElementById('cinfo');
+  if(cinfoEl)cinfoEl.textContent='O:-- H:-- L:-- C:-- V:--';
   if(S.ws){try{S.ws.close()}catch(e){}}
   if(S.wsMk){try{S.wsMk.close()}catch(e){}}
   connectWS();fetchK();S.dirty=true;
