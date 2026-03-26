@@ -59,7 +59,7 @@ canvas#cvv{width:35%;display:block;border-left:1px solid var(--border);min-width
 .adot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .adot.on{background:var(--green);box-shadow:0 0 5px var(--green)}.adot.off{background:var(--text3)}
 .sess-pill{font-size:8px;padding:3px 6px;border-radius:8px;background:rgba(122,172,204,0.1);border:1px solid rgba(122,172,204,0.3);color:var(--text3);font-weight:600;transition:all .15s ease-out}
-.sess-pill.active{color:#000;border-color:var(--green);background:var(--green);box-shadow:0 0 10px rgba(0,255,136,0.9),0 0 20px rgba(0,255,136,0.5);font-weight:800}
+.sess-pill.active{color:#000;border-color:var(--green);background:var(--green);font-weight:800}
 @keyframes pulse{0%,100%{box-shadow:0 0 5px rgba(0,255,136,.3)}50%{box-shadow:0 0 12px rgba(0,255,136,.6)}}
 .mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200}
 .mbg.on{display:block}
@@ -416,12 +416,13 @@ window.addEventListener('load',()=>{
   setInterval(()=>{if(S.keys.main.k)fetchAcc('main');if(S.keys.test.k)fetchAcc('test')},20000);
   if(S.keys.main.k)fetchAcc('main');
   if(S.keys.test.k)fetchAcc('test');
-  wakeLock();
-  updateLogo();
-   addSig('alert','SYSTEM','READY','WebSocket connecting to Binance...',true);
-   // Mobile menu show
-   const mmenu=document.getElementById('mmenu');
-   if(window.innerWidth<=700&&mmenu)mmenu.style.display='flex';
+   wakeLock();
+   updateLogo();
+   updateSessionPills();
+    addSig('alert','SYSTEM','READY','WebSocket connecting to Binance...',true);
+    // Mobile menu show
+    const mmenu=document.getElementById('mmenu');
+    if(window.innerWidth<=700&&mmenu)mmenu.style.display='flex';
 });
 
 async function wakeLock(){try{if('wakeLock'in navigator)await navigator.wakeLock.request('screen')}catch(e){}}
@@ -1857,6 +1858,7 @@ function onStrategyChange(){
   toast('Strategy: '+strat.toUpperCase(),'ok');
 }
 function updateMatrix(){
+  updateSessionPills();
   if(document.getElementById('ai-strategy').value==='scalper'){
     AI.checkScalperMatrix();
     AI.renderMatrix();
@@ -2947,6 +2949,28 @@ function playTone(f1,f2,dur=0.3){try{const ac=new(window.AudioContext||window.we
 
 // Session Check
 function getSessionInfo(){const d=new Date(),h=d.getUTCHours(),m=d.getUTCMinutes();const s={hardBlock:false,sizeMod:1,name:'Open'};if(h>=8&&h<8.5){s.hardBlock=true;s.name='London Open';s.sizeMod=0}else if(h>=13&&h<17){s.name='NY Overlap';s.sizeMod=1}else if(h>=17&&h<20){s.name='NY';s.sizeMod=1}else if(h>=8.5&&h<13){s.name='London';s.sizeMod=0.75}else if(h>=0&&h<8){s.name='Sydney/Tokyo';s.sizeMod=0.5}else if(h>=20&&h<22){s.name='Dead Zone';s.sizeMod=0}return s}
+
+// Update Session Pills (SYD, TOK, LON, NY)
+function updateSessionPills(){
+  const now=new Date();
+  const h=now.getUTCHours();
+  const d=now.getUTCDay();
+  const wknd=d===0||d===6;
+  // Sydney: 22-06 UTC, Tokyo: 00-09 UTC, London: 08-17 UTC, NY: 13-22 UTC
+  const syd=h>=22||h<6;
+  const tok=h>=0&&h<9;
+  const lon=h>=8&&h<17;
+  const ny=h>=13&&h<22;
+  if(!wknd){
+    document.getElementById('sp-syd')?.classList.toggle('active',syd);
+    document.getElementById('sp-tok')?.classList.toggle('active',tok);
+    document.getElementById('sp-lon')?.classList.toggle('active',lon);
+    document.getElementById('sp-ny')?.classList.toggle('active',ny);
+    document.getElementById('sp-nyc')?.classList.toggle('active',false);
+  } else {
+    ['syd','tok','lon','ny','nyc'].forEach(id=>document.getElementById('sp-'+id)?.classList.remove('active'));
+  }
+}
 
 // Entry Gate Check (13 gates)
 function checkEntryGates(sym){const s=getSessionInfo();if(s.hardBlock){speak('London open hard block');return false}const live=S.K.length?S.K[S.K.length-1][4]:0;if(!live)return false;if(bbState.inSqueeze){speak(S.sym+' Bollinger Band squeeze');return false}if(!_ewCache.valid){speak('No valid Elliott Wave count');return false}if(live<_ewCache.invalidPrice&&S.aiSide==='BUY'){speak('Below invalidation');return false}if(live>_ewCache.invalidPrice&&S.aiSide==='SELL'){speak('Above invalidation');return false}if(S.aiSide==='BUY'&&live>bbState.basis*1.005){speak('Price above basis chase');return false}if(S.aiSide==='SELL'&&live<bbState.basis*0.995){speak('Price below basis chase');return false}const tpDist=Math.abs(live-_ewCache.c100)/live;if(tpDist<0.005){speak('Target too close');return false}return true}
