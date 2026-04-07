@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VMAXRAY — Server Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050a0f;
+      --bg2: #080f17;
+      --panel: #0b1520;
+      --border: #0e2235;
+      --green: #00ff88;
+      --green-dim: #00ff8844;
+      --amber: #ffaa00;
+      --amber-dim: #ffaa0033;
+      --red: #ff3355;
+      --red-dim: #ff335533;
+      --cyan: #00d4ff;
+      --cyan-dim: #00d4ff22;
+      --text: #c8dde8;
+      --text-dim: #4a6b7a;
+      --mono: 'Share Tech Mono', monospace;
+      --display: 'Orbitron', monospace;
+      --body: 'Rajdhani', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80vw;
+      height: 60vh;
+      background: radial-gradient(ellipse, rgba(0,212,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 60px;
+      animation: fadeDown 0.8s ease forwards;
+    }
+
+    .logo-wrap {
+      display: inline-block;
+      position: relative;
+      margin-bottom: 12px;
+    }
+
+    .logo {
+      font-family: var(--display);
+      font-size: clamp(2.4rem, 8vw, 4.2rem);
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      color: var(--cyan);
+      text-shadow:
+        0 0 20px rgba(0,212,255,0.8),
+        0 0 60px rgba(0,212,255,0.3);
+      line-height: 1;
+    }
+
+    .logo span {
+      color: var(--green);
+    }
+
+    .tagline {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .relay-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 40px;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      padding: 12px 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .relay-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+    }
+
+    .relay-dot.live {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .servers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .server-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.4s ease;
+    }
+
+    .server-card.loaded {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .server-card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 30px rgba(0,212,255,0.1);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .machine-id {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .machine-name {
+      font-family: var(--display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+
+    .status-badge.checking {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .status-badge.online {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .status-badge.offline {
+      background: var(--red-dim);
+      color: var(--red);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+    }
+
+    .info-label {
+      color: var(--text-dim);
+    }
+
+    .info-value {
+      color: var(--text);
+    }
+
+    .info-value.url-val {
+      color: var(--cyan);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .launch-btn {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      padding: 14px 20px;
+      background: var(--cyan-dim);
+      border: 1px solid var(--cyan);
+      border-radius: 8px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .launch-btn:hover {
+      background: var(--cyan);
+      color: var(--bg);
+    }
+
+    .launch-btn.disabled {
+      background: var(--border);
+      border-color: var(--border);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .refresh-wrap {
+      text-align: center;
+      margin: 40px 0;
+    }
+
+    .refresh-btn {
+      padding: 14px 30px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .refresh-btn:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .refresh-btn.spinning svg {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .last-updated {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 10px;
+    }
+
+    footer {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    footer span {
+      color: var(--cyan);
+    }
+
+    @media (max-width: 600px) {
+      .servers-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-wrap">
+        <div class="logo">VMAX<span>RAY</span></div>
+      </div>
+      <div class="tagline">Server Hub</div>
+    </header>
+
+    <div class="relay-status">
+      <div class="relay-dot" id="relay-dot"></div>
+      <span id="relay-label">GAS RELAY — CHECKING</span>
+    </div>
+
+    <div class="servers-grid" id="servers-grid"></div>
+
+    <div class="refresh-wrap">
+      <button class="refresh-btn" id="refresh-btn" onclick="loadAll()">⟳ &nbsp;REFRESH STATUS</button>
+    </div>
+
+    <div class="last-updated" id="last-updated"></div>
+
+    <footer>
+      VMAXRAY &nbsp;<span>©2026</span>&nbsp; · BUILT BY ROY · SINGAPORE
+    </footer>
+  </div>
+
+  <script>
+    // ── CONFIG ─────────────────────────────────────────
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwTvs_1_4ZjDi7HSrpScpgHOGWeMsba0_Ia17skX6vUKCfeU-UlEz2h2wpNf7p2Prm5Fw/exec";
+    const SECRET = "VMAXRAY2025";
+
+    const MACHINES = [
+      {
+        id: "NODE-01",
+        key: "win7",
+        name: "WIN7",
+        desc: "Primary Chat Server",
+        port: "8080"
+      },
+      {
+        id: "NODE-02",
+        key: "minios",
+        name: "MINIOS",
+        desc: "Secondary Chat Server",
+        port: "8081"
+      }
+    ];
+    // ───────────────────────────────────────────────────
+
+    let liveURLs = { win7: null, minios: null };
+
+    function getSGT() {
+      return new Date().toLocaleTimeString("en-SG", {
+        timeZone: "Asia/Singapore",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: false
+      });
+    }
+
+    function updateClock() {
+      document.getElementById("sgtime").textContent = "SGT " + getSGT();
+    }
+
+    function buildCards() {
+      const grid = document.getElementById("servers-grid");
+      grid.innerHTML = "";
+
+      MACHINES.forEach((m, i) => {
+        const card = document.createElement("div");
+        card.className = "server-card";
+        card.id = "card-" + m.key;
+        card.innerHTML = `
+          <div class="card-header">
+            <div>
+              <div class="machine-id">${m.id} · ${m.desc}</div>
+              <div class="machine-name">${m.name}</div>
+            </div>
+            <div class="status-badge checking" id="badge-${m.key}">
+              <div class="status-dot"></div>
+              <span>CHECKING</span>
+            </div>
+          </div>
+
+          <div class="info-row">
+            <span class="info-label">TUNNEL URL</span>
+            <span class="info-value url-val" id="url-${m.key}">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">PORT</span>
+            <span class="info-value">${m.port}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">PING</span>
+            <span class="info-value" id="ping-${m.key}">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">LAST SEEN</span>
+            <span class="info-value" id="seen-${m.key}">—</span>
+          </div>
+
+          <a href="#" id="btn-${m.key}" class="launch-btn disabled" target="_blank">
+            <span>⬡ &nbsp;CONNECT TO ${m.name}</span>
+          </a>
+        `;
+        grid.appendChild(card);
+
+        setTimeout(() => card.classList.add("loaded"), i * 150);
+      });
+    }
+
+    function setStatus(key, state, url) {
+      const badge = document.getElementById("badge-" + key);
+      const btn = document.getElementById("btn-" + key);
+      const urlEl = document.getElementById("url-" + key);
+
+      badge.className = "status-badge " + state;
+      badge.innerHTML = `<div class="status-dot"></div><span>${state.toUpperCase()}</span>`;
+
+      if (url) {
+        urlEl.textContent = url.replace("https://", "");
+        urlEl.title = url;
+      } else {
+        urlEl.textContent = "—";
+      }
+
+      if (state === "online" && url) {
+        btn.href = url;
+        btn.classList.remove("disabled");
+      } else {
+        btn.href = "#";
+        btn.classList.add("disabled");
+      }
+    }
+
+    function setPing(key, ms) {
+      const el = document.getElementById("ping-" + key);
+      if (ms !== null) {
+        const color = ms < 300 ? "var(--green)" : ms < 800 ? "var(--amber)" : "var(--red)";
+        el.innerHTML = `<span style="color:${color}">${ms}ms</span>`;
+      } else {
+        el.textContent = "—";
+      }
+    }
+
+    function setSeen(key) {
+      const el = document.getElementById("seen-" + key);
+      el.textContent = getSGT();
+    }
+
+    async function pingServer(url) {
+      const start = Date.now();
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          mode: "no-cors",
+          signal: AbortSignal.timeout(4000)
+        });
+        return Date.now() - start;
+      } catch {
+        return null;
+      }
+    }
+
+    async function fetchURLsFromGAS() {
+      try {
+        const res = await fetch(`${GAS_URL}?action=getURLs&secret=${SECRET}`, {
+          signal: AbortSignal.timeout(8000)
+        });
+        const data = await res.json();
+        return data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function loadAll() {
+      const btn = document.getElementById("refresh-btn");
+      const relayDot = document.getElementById("relay-dot");
+      const relayLabel = document.getElementById("relay-label");
+
+      btn.classList.add("spinning");
+      relayDot.className = "relay-dot";
+      relayLabel.textContent = "GAS RELAY — CONNECTING";
+
+      const urls = await fetchURLsFromGAS();
+
+      if (!urls) {
+        relayLabel.textContent = "GAS RELAY — UNREACHABLE";
+        MACHINES.forEach(m => setStatus(m.key, "offline", null));
+        btn.classList.remove("spinning");
+        return;
+      }
+
+      relayDot.className = "relay-dot live";
+      relayLabel.textContent = "GAS RELAY — ONLINE";
+      liveURLs = urls;
+
+      document.getElementById("last-updated").textContent =
+        "UPDATED: " + getSGT();
+
+      const checks = MACHINES.map(async (m) => {
+        const url = urls[m.key + "_chat"];
+        if (!url) {
+          setStatus(m.key, "offline", null);
+          setPing(m.key, null);
+          return;
+        }
+
+        setStatus(m.key, "checking", url);
+        const ms = await pingServer(url);
+
+        if (ms !== null) {
+          setStatus(m.key, "online", url);
+          setPing(m.key, ms);
+          setSeen(m.key);
+        } else {
+          setStatus(m.key, "offline", url);
+          setPing(m.key, null);
+        }
+      });
+
+      await Promise.all(checks);
+      btn.classList.remove("spinning");
+    }
+
+    buildCards();
+    loadAll();
+    setInterval(loadAll, 30000);
+  </script>
+</body>
+</html>
